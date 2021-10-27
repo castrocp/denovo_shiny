@@ -2,14 +2,18 @@ library(shiny)
 library(shinythemes)
 library(DT)
 library(here)
-
-# using tutorial from:
-# https://towardsdatascience.com/how-to-build-a-data-analysis-app-in-r-shiny-143bee9338f7
+library(tidyverse)
 
 DNM_df <- read.delim(here("denovo_app/data", "DNMs.hg19.indelFilt.rptFilt.MAF001.singletons.RegDBv2.TURF.BrainSpecific.CADD.VEP.phastCons.SIFT.PolyPhen.DHS_fetal_brain_enh.DHS_fetal_brain_prom.1500bp_prom.autosomes.bed"))
 
+
+# Define UI -----------
+# Shiny uses a family of functions that turn R objects into output for the user interface
+# Each function creates a specific type of output: plotOutput, tableOutput, textOuput, etc.
+# Each `--Output` function takes as its first argument the name of the element, which is created on the server side.
+
 not_sel <- "Not Selected" # to show when a selection has not yet been made in the drop-down menu
-###
+
 main_page <- tabPanel(
   title = "Analysis",
   titlePanel("Testing Fisher's Exact Test"),
@@ -17,13 +21,18 @@ main_page <- tabPanel(
   sidebarLayout(
     sidebarPanel(
       title = "Inputs",
-      #fileInput("csv_input", "Select CSV File to Import", accept = ".csv"),
-      selectInput(inputId = "prom_count", label = "feature", choices = names(DNM_df)),
-      selectInput("num_var_1", "Genomic Feature", choices = c(not_sel, "fetal brain promoter", "promoter 1500bp upstream", "fetal brain enhancer")),
-      selectInput("num_var_2", "Additional Genomic Feature", choices = c(not_sel, "TURF > .8", "RegulomeDB 2s")),
+    
+      # The `input` argument for the server section function is a list-like object that stores the values of widgets
+      # The value is saved under the name used for `inputID` and later accessed by the server as `input$inputID`
+      # Widget inputs are also referred to as reactive values
+      
+      selectInput(inputId = "sel_feature", label = "feature", choices = names(DNM_df)),
+      #selectInput(inputId = "sel_feature", label = "Feature", choices = "child", selected = "child"),
+      #selectInput("num_var_2", "Additional Genomic Feature", choices = c(not_sel, "TURF > .8", "RegulomeDB 2s")),
 
       br(),
       actionButton("add_feature", "Add Feature", icon = icon("plus")),
+      br(),
       br(),
       actionButton("run_button", "Run Test", icon = icon("play"))
       
@@ -45,15 +54,16 @@ main_page <- tabPanel(
         tabPanel(
           title = "test linking of features to dataframe",
           
-          textOutput("selected_feature"),
-          textOutput("additional_selected_feature")
+          textOutput("proband_count"),
+          textOutput("sibling_count"),
+          textOutput("proband_count2")
+          #textOutput("additional_selected_feature")
           
         )
       )
     )
   )
 )
-
 
 
 about_page <- tabPanel(
@@ -64,23 +74,24 @@ about_page <- tabPanel(
   "2021"
 )
 
-# Define UI -----------
-ui <- navbarPage( 
-    title = 'De Novo Analyser',
-    theme = shinytheme('united'),
-    main_page,
-    about_page
-)
 
-    
+ui <- navbarPage( 
+  title = 'De Novo Analyser',
+  theme = shinytheme('united'),
+  main_page,
+  about_page
+)
 
   
 
 # Define server logic -----------
+# You provide instructions on where to display object in the UI section.
+# You build the objects under the server function.
+# Each object is placed in a list-like object named `output`
+# Each object should contain the output of one of Shiny's `render--` functions. ex. renderPlot, renderTable, etc.
+# The element name should match the name that's used in the UI section.
 
 server <- function(input, output) {
-  
-
   
   #Create the values to fill the 2x2 matrix in with
   total_proband <- 30
@@ -119,18 +130,54 @@ server <- function(input, output) {
   }
   
   
+  # Create a reactive dataframe based on selected input
+  #data_input <- reactive({ # brackets are there to allow multiple rows of code. Otherwise can omit.
+  #  req(input$sel_feature) # req makes sure we have the necessary input
+  #  filter(DNM_df, input$sel_feature=="proband")
+  #})
+
   
-  data_input <- reactive({ # brackets are there to allow multiple rows of code. Otherwise can omit.
-    req(input$csv_input) # req makes sure we have the necessary input
-    fread(input$csv_input$datapath)
+  # Can get the number of entries in dataframe dependent on column values
+  output$proband_count <- renderText({
+    nrow(filter(DNM_df, child == "proband"))
   })
   
-  observeEvent(data_input(),{ # function to execute code according to a changing input field
-    choices <- c(not_sel,names(data_input())) # choices is a list of the columns in the data.table
-    updateSelectInput(inputId = "num_var_1", choices = choices)
-    updateSelectInput(inputId = "num_var_2", choices = choices)
+  output$sibling_count <- renderText({
+    nrow(filter(DNM_df, child == "sibling"))
+  })
+  
+  # How can I do the same, but have the feature (child) be dependent on user input?
+  #feat_count <- reactive({
+  #  req(input$sel_feature)
+  #  input$sel_feature
+  #})
+  
+  output$proband_count2 <- renderText({
+    #filt_df <-feat_count()
+    nrow(filter(DNM_df, get(input$sel_feature) == "13123"))
+    #switch(input$sel_feature,
+    #       chrom = {nrow(filter(DNM_df, famID == "13850"))}, 
+    #       start = {"b"},
+    #       {"default"})
+    #input$sel_feature
+    #nrow(filter(DNM_df, child == "proband"))
+  })
+  
+  
+  
+  
+  
+  
+  #output$plot <- renderPlot({
+    #barplot(data_input())
+    #})
+  
+  #observeEvent(data_input(),{ # function to execute code according to a changing input field
+    #choices <- c(not_sel,names(data_input())) # choices is a list of the columns in the data.table
+    #updateSelectInput(inputId = "num_var_1", choices = choices)
+    #updateSelectInput(inputId = "num_var_2", choices = choices)
     #updateSelectInput(inputId = "fact_var", choices = choices)
-  })
+  #})
   
   output$df = renderDT(DNM_df, rownames=FALSE)
   
@@ -188,3 +235,6 @@ server <- function(input, output) {
 
 # Run the app -----------
 shinyApp(ui = ui, server = server)
+
+# reference tutorial from:
+# https://towardsdatascience.com/how-to-build-a-data-analysis-app-in-r-shiny-143bee9338f7
