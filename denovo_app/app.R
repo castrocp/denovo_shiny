@@ -5,7 +5,8 @@ library(here)
 library(tidyverse)
 
 DNM_df <- read.delim(here("denovo_app/data", "DNMs.hg19.indelFilt.rptFilt.MAF001.singletons.RegDBv2.TURF.BrainSpecific.CADD.VEP.phastCons.SIFT.PolyPhen.DHS_fetal_brain_enh.DHS_fetal_brain_prom.1500bp_prom.autosomes.bed"))
-
+DNM_df$fetal_brain_prom_dhs <- unlist(lapply(DNM_df$fetal_brain_prom_dhs, function(x) {return(x=="DHS_fetal_brain_prom")}))
+DNM_df$fetal_brain_enh_dhs <- unlist(lapply(DNM_df$fetal_brain_enh_dhs, function(x) {return(x=="DHS_fetal_brain_enh")}))
 
 # Define UI -----------
 # Shiny uses a family of functions that turn R objects into output for the user interface
@@ -26,15 +27,18 @@ main_page <- tabPanel(
       # The value is saved under the name used for `inputID` and later accessed by the server as `input$inputID`
       # Widget inputs are also referred to as reactive values
       
-      selectInput(inputId = "sel_feature", label = "feature", choices = names(DNM_df)),
+      #selectInput(inputId = "sel_feature", label = "feature", choices = names(DNM_df)),
       #selectInput(inputId = "sel_feature", label = "Feature", choices = "child", selected = "child"),
       #selectInput("num_var_2", "Additional Genomic Feature", choices = c(not_sel, "TURF > .8", "RegulomeDB 2s")),
-
+      
+      uiOutput("dropdownlist"),
+      
       br(),
       actionButton("add_feature", "Add Feature", icon = icon("plus")),
       br(),
       br(),
-      actionButton("run_button", "Run Test", icon = icon("play"))
+      actionButton("run_button", "Run Test", icon = icon("play")),
+      uiOutput('addfeature')
       
       
   ),
@@ -56,7 +60,8 @@ main_page <- tabPanel(
           
           textOutput("proband_count"),
           textOutput("sibling_count"),
-          textOutput("proband_count2")
+          textOutput("proband_count2"),
+          textOutput("test")
           #textOutput("additional_selected_feature")
           
         )
@@ -93,39 +98,18 @@ ui <- navbarPage(
 
 server <- function(input, output) {
   
-  #Create the values to fill the 2x2 matrix in with
-  total_proband <- 30
-  total_sibling <- 30
-  
-  # I'll want to fill these numbers in
-  get.table <- function(input){
-    r1c1 <- 15 #proband with
-    r1c2 <- total_proband - r1c1 #proband without
-    r2c1 <- 13 #sibling with
-    r2c2 <- total_sibling - r2c1 #sibling without
-    
-    # Create 2x2 matrix
-    twobytwo <- matrix(
-      c(r1c1,r1c2,r2c1,r2c2), nrow = 2,
-      dimnames = list(
-        child=c('proband','sibling'),
-        feature=c('present','not present') #whatever feature we're looking for DNMs in
-      )
-    )
-  }
-  
-  # Fisher's exact test.   DO I HAVE TO BUILD THE MATRIX WITHIN HERE OR CAN I JUST USE THE ONE BUILT ABOVE?
+  # Fisher's exact test
   fet <- function(x){
-    total_proband <- 30
-    total_sibling <- 30
-    r1c1 <- 15 #proband with
-    r1c2 <- total_proband - r1c1 #proband without
-    r2c1 <- 13 #sibling with
-    r2c2 <- total_sibling - r2c1 #sibling without
+    #total_proband <- 30
+    #total_sibling <- 30
+    #r1c1 <- 15 #proband with
+    #r1c2 <- total_proband - r1c1 #proband without
+    #r2c1 <- 13 #sibling with
+    #r2c2 <- total_sibling - r2c1 #sibling without
     
-    twobytwo <- matrix(c(r1c1,r1c2,r2c1,r2c2), nrow = 2)
+    #twobytwo <- matrix(c(r1c1,r1c2,r2c1,r2c2), nrow = 2)
     
-    fet_output <- fisher.test(twobytwo)
+    fet_output <- fisher.test(x)
     return(fet_output)
   }
   
@@ -137,33 +121,88 @@ server <- function(input, output) {
   #})
 
   
+  # Get total number of mutations in probands and siblings
+  total_proband <- nrow(filter(DNM_df, child == "proband"))
+  total_sibling <- nrow(filter(DNM_df, child == "sibling"))
+  
+  output$proband_count2 <- renderText({
+    total_proband
+    #nrow(filter(DNM_df, get(input$sel_feature) == "13123"))
+  })
+  
   # Can get the number of entries in dataframe dependent on column values
   output$proband_count <- renderText({
-    nrow(filter(DNM_df, child == "proband"))
+    #total_proband
+    nrow(filter(DNM_df, get(input$sel_feature) == "DHS_fetal_brain_prom"))
   })
   
   output$sibling_count <- renderText({
-    nrow(filter(DNM_df, child == "sibling"))
+    #total_sibling
+    nrow(filter(DNM_df, get(input$sel_feature) != "DHS_fetal_brain_prom"))
   })
   
-  # How can I do the same, but have the feature (child) be dependent on user input?
-  #feat_count <- reactive({
-  #  req(input$sel_feature)
-  #  input$sel_feature
-  #})
-  
-  output$proband_count2 <- renderText({
-    #filt_df <-feat_count()
-    nrow(filter(DNM_df, get(input$sel_feature) == "13123"))
+  # Another possible method for accessing values using selected column name  
     #switch(input$sel_feature,
     #       chrom = {nrow(filter(DNM_df, famID == "13850"))}, 
     #       start = {"b"},
     #       {"default"})
-    #input$sel_feature
-    #nrow(filter(DNM_df, child == "proband"))
-  })
+
+
   
+
+  # Populate 2x2 matrix with counts of mutations corresponding to selected feature
+  get.table <- function(input){
+    
+    ## Might make sense to use a dictionary to populate the conditional statement
+    ## dependent on which feature the user selects
+    
+    ## ex. if the feature is fetal_brain_prom_dhs, then you're looking for
+    ## the "DHS_fetal_brain_prom" annotation in the data table to count.
+    ## So the pair would be fetal_brain_prom_dhs and "DHS_fetal_brain_prom"
+    
+    ##if USER-SELECTED FEATURE IS IN DICTIONARY:
+    ##  RETURN THE VALUE CORRESPONDING TO THAT SELECTION
+    
+    #if user selects regDB2.0, run:  get(input$sel_feature) == "2a"
+    #if user selects TURF, run: get(input$sel_feature) >= .89 (top 1% score)
+    
+    
+    ## USE BOOLEAN AND "WHICH" FOR COUNTING FEATURES
+    
+    # mutations in proband for selected feature
+    #pro_with <-  nrow(filter(DNM_df,
+    #                         child == "proband"
+    #                         & get(input$sel_feature) == "DHS_fetal_brain_prom"))
+    pro_with <- length(which(DNM_df[,input$sel_feature] == TRUE & DNM_df$child == "proband"))
+    
+    # mutations in proband without selected feature present
+    pro_wo <- total_proband - pro_with
+    
+    # mutations in sibling for selected feature
+    #sib_with <- nrow(filter(DNM_df,
+    #                        child == "sibling"
+    #                        & get(input$sel_feature) == "DHS_fetal_brain_prom")) # mutations in sibling for selected feature
+    sib_with <- length(which(DNM_df[,input$sel_feature] == TRUE & DNM_df$child == "sibling"))
+    
+    # mutations in siblings without selected feature present
+    sib_wo <- total_sibling - sib_with
+    
+    twobytwo <- matrix(
+      c(pro_with, sib_with, pro_wo, sib_wo), nrow = 2,
+      dimnames= list(
+        child=c('proband','sibling'),
+        feature=c("with feature","without feature")))
+  }
+
+
+    
+    
   
+    
+
+  
+
+
   
   
   
@@ -183,10 +222,11 @@ server <- function(input, output) {
   
   # Show the 2x2 table of counts
   output$counts <- renderTable({
-    x <- get.table(input)
-    y <- as.data.frame(addmargins(x))
-    y[,c(1,2,3)] <- apply(y[,c(1,2,3)],1, as.integer)
-    y
+    get.table(input)
+    #x <- get.table(input)
+    #y <- as.data.frame(addmargins(x))
+    #y[,c(1,2,3)] <- apply(y[,c(1,2,3)],1, as.integer)
+    #y
   })
   
   # Show the p-value from the fisher's exact test
@@ -216,22 +256,25 @@ server <- function(input, output) {
   
   
   
+  dropdownslist <- reactiveValues()
+  dropdownslist[[as.character(1)]] <- selectInput(inputId = "sel_feature_1", label = "feature 1", choices = names(DNM_df))
+  
+  dropdown_count <- reactiveVal(1)
+    
+  observeEvent(input$add_feature,{
+    dropdown_count(dropdown_count() + 1)
+    dropdownslist[[as.character(dropdown_count())]] <- selectInput(inputId = paste("sel_feature_", dropdown_count(), sep = ""), label = paste("feature", dropdown_count(), sep = " "), choices = names(DNM_df))
+    
+output$dropdownlist <- renderUI({dropdownslist})
+    
+    #print(dropdownslist)
+    #print(dropdown_count())
+  })
+               
+  output$dropdownlist <- renderUI({dropdownslist})
   
 }
   
-#  output$selected_var <- renderText({
-#    paste("You have selected", input$var)
-#  })
-  
-#  output$min_max <- renderText({
-#    paste("You chose a range that goes from", input$range[1], "to", input$range[2])
-#  })
-  
-#  output$dnm_table = DT::renderDataTable({
-#    read.delim("/data/DNMs.hg19.indelFilt.rptFilt.MAF001.RegDBv2.singletons.CADD.VEP.phastCons.SIFT.PolyPhen.fetal_brain_enhancer.DHS_fetal_brain_enh.DHS_fetal_brain_prom.turf_score.organScore.brainSp_score")
-#  })
-
-
 
 # Run the app -----------
 shinyApp(ui = ui, server = server)
