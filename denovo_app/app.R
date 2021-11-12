@@ -195,18 +195,6 @@ server <- function(input, output) {
   }
 
 
-    
-    
-  
-    
-
-  
-
-
-  
-  
-  
-  
   #output$plot <- renderPlot({
     #barplot(data_input())
     #})
@@ -226,7 +214,7 @@ server <- function(input, output) {
     #x <- get.table(input)
     #y <- as.data.frame(addmargins(x))
     #y[,c(1,2,3)] <- apply(y[,c(1,2,3)],1, as.integer)
-    #y
+    ##y
   })
   
   # Show the p-value from the fisher's exact test
@@ -263,7 +251,8 @@ server <- function(input, output) {
     
   observeEvent(input$add_feature,{
     dropdown_count(dropdown_count() + 1)
-    dropdownslist[[as.character(dropdown_count())]] <- selectInput(inputId = paste("sel_feature_", dropdown_count(), sep = ""), label = paste("feature", dropdown_count(), sep = " "), choices = names(DNM_df))
+    i = dropdown_count()
+    dropdownslist[[as.character(i)]] <- selectInput(inputId = paste("sel_feature_", dropdown_count(), sep = ""), label = paste("feature", dropdown_count(), sep = " "), choices = names(DNM_df))
     
 output$dropdownlist <- renderUI({dropdownslist})
     
