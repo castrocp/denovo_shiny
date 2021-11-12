@@ -214,7 +214,7 @@ server <- function(input, output) {
     #x <- get.table(input)
     #y <- as.data.frame(addmargins(x))
     #y[,c(1,2,3)] <- apply(y[,c(1,2,3)],1, as.integer)
-    ##y
+    #y
   })
   
   # Show the p-value from the fisher's exact test
