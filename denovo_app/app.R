@@ -195,6 +195,18 @@ server <- function(input, output) {
   }
 
 
+    
+    
+  
+    
+
+  
+
+
+  
+  
+  
+  
   #output$plot <- renderPlot({
     #barplot(data_input())
     #})
@@ -244,17 +256,15 @@ server <- function(input, output) {
   
   
   
-  dropdownslist <- reactiveValues()
-  dropdownslist[[as.character(1)]] <- selectInput(inputId = "sel_feature_1", label = "feature 1", choices = names(DNM_df))
+  dropdownslist <- list(selectInput(inputId = "sel_feature_1", label = "feature 1", choices = names(DNM_df)))
   
   dropdown_count <- reactiveVal(1)
     
   observeEvent(input$add_feature,{
     dropdown_count(dropdown_count() + 1)
-    i = dropdown_count()
-    dropdownslist[[as.character(i)]] <- selectInput(inputId = paste("sel_feature_", dropdown_count(), sep = ""), label = paste("feature", dropdown_count(), sep = " "), choices = names(DNM_df))
-    
-output$dropdownlist <- renderUI({dropdownslist})
+    dropdownslist <- append(dropdownslist,
+                            list(selectInput(inputId = paste("sel_feature_", dropdown_count(), sep = ""), label = paste("feature", dropdown_count(), sep = " "), choices = names(DNM_df))))
+    output$dropdownlist <- renderUI({dropdownslist})
     
     #print(dropdownslist)
     #print(dropdown_count())
