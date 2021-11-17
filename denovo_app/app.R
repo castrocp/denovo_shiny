@@ -173,7 +173,7 @@ server <- function(input, output) {
     #pro_with <-  nrow(filter(DNM_df,
     #                         child == "proband"
     #                         & get(input$sel_feature) == "DHS_fetal_brain_prom"))
-    pro_with <- length(which(DNM_df[,input$sel_feature] == TRUE & DNM_df$child == "proband"))
+    pro_with <- length(which(DNM_df[,input$sel_feature_1] == TRUE & DNM_df$child == "proband"))
     
     # mutations in proband without selected feature present
     pro_wo <- total_proband - pro_with
@@ -182,7 +182,7 @@ server <- function(input, output) {
     #sib_with <- nrow(filter(DNM_df,
     #                        child == "sibling"
     #                        & get(input$sel_feature) == "DHS_fetal_brain_prom")) # mutations in sibling for selected feature
-    sib_with <- length(which(DNM_df[,input$sel_feature] == TRUE & DNM_df$child == "sibling"))
+    sib_with <- length(which(DNM_df[,input$sel_feature_1] == TRUE & DNM_df$child == "sibling"))
     
     # mutations in siblings without selected feature present
     sib_wo <- total_sibling - sib_with
