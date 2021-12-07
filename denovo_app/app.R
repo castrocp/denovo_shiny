@@ -13,15 +13,18 @@ DNM_df$fetal_brain_enh_dhs <- unlist(lapply(DNM_df$fetal_brain_enh_dhs, function
 # Each function creates a specific type of output: plotOutput, tableOutput, textOuput, etc.
 # Each `--Output` function takes as its first argument the name of the element, which is created on the server side.
 
-not_sel <- "Not Selected" # to show when a selection has not yet been made in the drop-down menu
+not_sel <- "None" # to show when a selection has not yet been made in the drop-down menu
 
 main_page <- tabPanel(
   title = "Analysis",
-  titlePanel("Testing Fisher's Exact Test"),
+  #titlePanel("De Novo Single Nucleotide Mutations"),
   
   sidebarLayout(
-    sidebarPanel(
+    sidebarPanel(h4("Select desired filters for mutations to be shown in the table"),
+                 br(),
       title = "Inputs",
+      
+      out = "this is text",
     
       # The `input` argument for the server section function is a list-like object that stores the values of widgets
       # The value is saved under the name used for `inputID` and later accessed by the server as `input$inputID`
@@ -31,13 +34,37 @@ main_page <- tabPanel(
       #selectInput(inputId = "sel_feature", label = "Feature", choices = "child", selected = "child"),
       #selectInput("num_var_2", "Additional Genomic Feature", choices = c(not_sel, "TURF > .8", "RegulomeDB 2s")),
       
+      selectInput(inputId = "regdb", label = "Select RegulomeDB threshold",
+                  choices = c(not_sel, "2s","3s", "4s")),
+      
+      selectInput(inputId = "turf", label = "Select TURF threshold",
+                  choices = c(not_sel, .6, .7, .8, .9)),
+      
+      selectInput(inputId = "brain_sp", label = "Select brain specific score threshold",
+                  choices = c(not_sel, .6, .7, .8, .9)),
+      
+      selectInput(inputId = "cadd", label = "Select CADD threshold",
+                  choices = c(not_sel, 1, 5, 10, 15, 20, 30, 40)),
+      
+      selectInput(inputId = "vep", label = "Select VEP category",
+                  choices = c(not_sel,"stop gain", "missense", "splice donor", "splice acceptor")),
+      
+      selectInput(inputId = "phastcons", label = "Select phastCons threshold",
+                  choices = c(not_sel, 500, 600, 700, 800, 900)),
+      
+      selectInput(inputId = "enahncer", label = "Select enhancer status",
+                  choices = c("not overlapping brain enhancer", "overlapping brain enhancer")),
+      
+      selectInput(inputId = "promoter", label = "Select promoter status",
+                  choices = c("not overlapping brain promoter", "overlapping brain promoter")),
+      
       uiOutput("dropdownlist"),
       
       br(),
       actionButton("add_feature", "Add Feature", icon = icon("plus")),
       br(),
       br(),
-      actionButton("run_button", "Run Test", icon = icon("play")),
+      actionButton(inputId = "filter_table", label ="Filter Table", icon = icon("play")),
       uiOutput('addfeature')
       
       
@@ -47,7 +74,7 @@ main_page <- tabPanel(
       tabsetPanel(
         tabPanel(
           title = "De Novo Mutation table",
-          DTOutput('df') #use DT's DTOutput() to avoid conflict with shiny::dataTableOutput()
+          DTOutput('testtable') #use DT's DTOutput() to avoid conflict with shiny::dataTableOutput()
         ),
         tabPanel(
           title = "Table of counts",
@@ -97,6 +124,38 @@ ui <- navbarPage(
 # The element name should match the name that's used in the UI section.
 
 server <- function(input, output) {
+  # Create a reactive dataframe based on selected input
+  
+  ## Reactive function to subset the data based on the selected states by the user and on click of the button
+  data_reactive <- eventReactive(input$filter_table, 
+                                 filter(DNM_df, TURF >= input$turf)
+  )
+  
+  #data_reactive <- reactive({ # brackets are there to allow multiple rows of code. Otherwise can omit.
+    #req(input$sel_feature) # req makes sure we have the necessary input
+   # filter(DNM_df, VEP=="missense_variant")
+  #})
+  
+  output$testtable <- DT::renderDataTable({
+    
+    DT::datatable(data_reactive())
+  })
+  
+  
+                                
+  
+  #filteredData <- reactiveVal(DNM_df)
+  #observeEvent(input$filter_table, {
+  #  filteredData(DNM_df %>% filter(DNM_df, VEP == "missense_variant"))
+  #})
+  
+  #output$testtable <- renderDataTable(datatable(filteredData()))
+
+  
+  # THIS WOULD GO IN THE UI SECTION AND WORK WITH THE ABOVE DATA SUBSET COMMAND
+  #actionButton(inputId ="update" , label = "Update & Show Plot")
+  
+  
   
   # Fisher's exact test
   fet <- function(x){
@@ -113,22 +172,16 @@ server <- function(input, output) {
     return(fet_output)
   }
   
-  
-  # Create a reactive dataframe based on selected input
-  #data_input <- reactive({ # brackets are there to allow multiple rows of code. Otherwise can omit.
-  #  req(input$sel_feature) # req makes sure we have the necessary input
-  #  filter(DNM_df, input$sel_feature=="proband")
-  #})
 
   
   # Get total number of mutations in probands and siblings
   total_proband <- nrow(filter(DNM_df, child == "proband"))
   total_sibling <- nrow(filter(DNM_df, child == "sibling"))
   
-  output$proband_count2 <- renderText({
-    total_proband
+  #output$proband_count2 <- renderText({
+  #  total_proband
     #nrow(filter(DNM_df, get(input$sel_feature) == "13123"))
-  })
+  #})
   
   # Can get the number of entries in dataframe dependent on column values
   output$proband_count <- renderText({
@@ -153,21 +206,10 @@ server <- function(input, output) {
   # Populate 2x2 matrix with counts of mutations corresponding to selected feature
   get.table <- function(input){
     
-    ## Might make sense to use a dictionary to populate the conditional statement
-    ## dependent on which feature the user selects
-    
-    ## ex. if the feature is fetal_brain_prom_dhs, then you're looking for
-    ## the "DHS_fetal_brain_prom" annotation in the data table to count.
-    ## So the pair would be fetal_brain_prom_dhs and "DHS_fetal_brain_prom"
-    
-    ##if USER-SELECTED FEATURE IS IN DICTIONARY:
-    ##  RETURN THE VALUE CORRESPONDING TO THAT SELECTION
     
     #if user selects regDB2.0, run:  get(input$sel_feature) == "2a"
     #if user selects TURF, run: get(input$sel_feature) >= .89 (top 1% score)
     
-    
-    ## USE BOOLEAN AND "WHICH" FOR COUNTING FEATURES
     
     # mutations in proband for selected feature
     #pro_with <-  nrow(filter(DNM_df,
@@ -192,6 +234,11 @@ server <- function(input, output) {
       dimnames= list(
         child=c('proband','sibling'),
         feature=c("with feature","without feature")))
+  }
+  
+  #Function to populate 2x2 table for continuous features
+  get.table.contin <- function(input){
+    pro_with <- length(which(DNM_df[,input$sel_feature_1] == TRUE & DNM_df$child == "proband"))
   }
 
 
@@ -227,6 +274,7 @@ server <- function(input, output) {
     #y <- as.data.frame(addmargins(x))
     #y[,c(1,2,3)] <- apply(y[,c(1,2,3)],1, as.integer)
     #y
+    #get.table.contin(input)
   })
   
   # Show the p-value from the fisher's exact test
@@ -257,26 +305,34 @@ server <- function(input, output) {
   
   
   dropdownslist <- list(selectInput(inputId = "sel_feature_1", label = "feature 1", choices = names(DNM_df)))
+  #dropdownslist[["1"]] <- selectInput(inputId = "sel_feature_1", label = "feature 1", choices = names(DNM_df))
   
   dropdown_count <- reactiveVal(1)
+  #dropdown_count <- reactiveValues(countervalue = 1)
     
   observeEvent(input$add_feature,{
     dropdown_count(dropdown_count() + 1)
     dropdownslist <- append(dropdownslist,
                             list(selectInput(inputId = paste("sel_feature_", dropdown_count(), sep = ""), label = paste("feature", dropdown_count(), sep = " "), choices = names(DNM_df))))
+
+
     output$dropdownlist <- renderUI({dropdownslist})
     
     #print(dropdownslist)
     #print(dropdown_count())
+    
   })
                
   output$dropdownlist <- renderUI({dropdownslist})
-  
-}
+
+}  
+
   
 
 # Run the app -----------
 shinyApp(ui = ui, server = server)
+
+
 
 # reference tutorial from:
 # https://towardsdatascience.com/how-to-build-a-data-analysis-app-in-r-shiny-143bee9338f7
