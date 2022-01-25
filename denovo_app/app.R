@@ -165,7 +165,7 @@ server <- function(input, output, session) {
     )
     
     ### phastCons score selection
-    ifelse(input$select_phastcons == "all", phastcons_selected <- DNM_df$phastCons,
+    ifelse(input$select_phastcons == "all", phastcons_selected <- "all",
            ifelse(input$select_phastcons == pasted_phastcons_top_1_percent, phastcons_selected <- phastcons_top_1_percent, 
                   ifelse(input$select_phastcons == pasted_phastcons_top_5_percent, phastcons_selected <- phastcons_top_5_percent, 
                          ifelse(input$select_phastcons == pasted_phastcons_top_10_percent, phastcons_selected <- phastcons_top_10_percent,
@@ -196,7 +196,9 @@ server <- function(input, output, session) {
                                        VEP == vep_selected & 
                                        TURF >= turf_selected &
                                        brainSp_score >= brainscore_selected &
-                                       phastCons >= phastcons_selected &
+                                       #(if (phastcons_selected=="all") (phastCons==T | is.na(phastCons)) else phastCons >= phastcons_selected) &
+                                       (case_when(phastcons_selected == "all" ~ phastCons %in% DNM_df$phastCons,
+                                                  TRUE ~ phastCons >= phastcons_selected)) &
                                        CADD >= cadd_selected &
                                        fetal_brain_enh_dhs == enhancer_selected &
                                        fetal_brain_prom_dhs == promoter_selected)
