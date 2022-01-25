@@ -12,6 +12,19 @@ DNM_df <- read.delim(here("denovo_app/data", "DNMs.hg19.indelFilt.rptFilt.MAF001
 server <- function(input, output, session) {
   
   # 1. UI dropdown selection
+  
+  ### Function to generate the text to be shown in the selection menu. Percentile along with corresponding threshold value.
+  paste_select_option <- function(percentile, value){
+    output_option <- paste(percentile, paste("( \u2265 ", value, ")", sep = ""), sep = " ") #unicode, greater than or equal to    
+    return(output_option)
+  }
+  
+  ### Function to calculate quantile thresholds
+  calc_quantile <- function(col, percentage){
+    quant <- round(quantile(col, percentage, names = FALSE), digits = 3) #set names to false to return quantile value without percentage label
+    return(quant)
+  }
+  
   output$ui_select_child <- renderUI({
     selectInput(inputId = "select_child", label = "Child", choices = c("all", "proband","sibling"))
   })
@@ -20,16 +33,60 @@ server <- function(input, output, session) {
     selectInput(inputId = "select_regdb", label = "RegulomeDB", choices = c("all", "all 2s", "all 3s", "2a", "2b", "2c", "3a", "3b", "4", "5", "6", "7"))
   })
   
-  output$ui_select_VEP <- renderUI({
-    selectInput(inputId = "select_vep", label = "VEP", choices = c("all", as.character(unique(DNM_df$VEP))) )
-  })
-  
   output$ui_select_turf <- renderUI({
     selectInput(inputId = "select_turf", label = "TURF", choices = c("all", .6, .7, .8, .9))
   })
   
+  ## Calculate brain-specific functional score quantiles
+  #brainsp_top_1_percent <- round(quantile(DNM_df$brainSp_score, .99, names = FALSE), digits = 3) #set names to false to return quantile value without percentage
+  brainsp_top_1_percent <- calc_quantile(DNM_df$brainSp_score, .99)
+  brainsp_top_5_percent <- calc_quantile(DNM_df$brainSp_score, .95)   
+  brainsp_top_10_percent <- calc_quantile(DNM_df$brainSp_score, .90)   
+  brainsp_top_15_percent <- calc_quantile(DNM_df$brainSp_score, .85)   
+  brainsp_top_20_percent <- calc_quantile(DNM_df$brainSp_score, .80)   
+  brainsp_top_25_percent <- calc_quantile(DNM_df$brainSp_score, .75)   
+  
+  #brainsp_top_5_percent <- round(quantile(DNM_df$brainSp_score, .95, names = FALSE), digits = 3) 
+  #brainsp_top_10_percent <- round(quantile(DNM_df$brainSp_score, .90, names = FALSE), digits = 3) 
+  #brainsp_top_15_percent <- round(quantile(DNM_df$brainSp_score, .85, names = FALSE), digits = 3) 
+  #brainsp_top_20_percent <- round(quantile(DNM_df$brainSp_score, .80, names = FALSE), digits = 3) 
+  #brainsp_top_25_percent <- round(quantile(DNM_df$brainSp_score, .75, names = FALSE), digits = 3) 
+  
+  output$ui_select_brainscore <- renderUI({
+    selectInput(inputId = "select_brainscore", label = "Brain-specific functional score", 
+                choices = c("all", c(paste_select_option("top 1%", brainsp_top_1_percent), paste_select_option("top 5%", brainsp_top_5_percent),
+                                     paste_select_option("top 10%", brainsp_top_10_percent), paste_select_option("top 15%", brainsp_top_15_percent),
+                                     paste_select_option("top 20%", brainsp_top_20_percent), paste_select_option("top 25%", brainsp_top_25_percent)
+                                     )
+                            )
+    )
+#choices = c("all", paste("top 1%", paste("(", top_1_percent, ")", sep = ""), sep = " "), "top 5% (.414)", "top 10% (.296)", "top 15% (.234)", "top 20% (.204)", "top 25% (.182)"))
+  })
+  
+  output$ui_select_CADD <- renderUI({
+    selectInput(inputId = "select_cadd", label = "CADD score", 
+                choices = c("all", "top 1% (21.1)", "top 5% (12.7)", "top 10% (9.4)", "top 15% (7.5)", "top 20% (6.2)", "top 25% (5.2)"))
+  })
+  
+  output$ui_select_VEP <- renderUI({
+    selectInput(inputId = "select_vep", label = "VEP", choices = c("all", as.character(unique(DNM_df$VEP))) )
+  })
+  
+#  output$ui_select_phastcons <- renderUI({
+#    selectInput(inputId = "select_phastcons", label = "phastCons", 
+#                choices = c("all", "top 1% (21.1)", "top 5% (12.7)", "top 10% (9.4)", "top 15% (7.5)", "top 20% (6.2)", "top 25% (5.2)")) 
+#  })
+  # > summary(as.numeric((as.character(filter(DNM_df, phastCons != ".")$phastCons))))
+# > quantile(as.numeric((as.character(filter(DNM_df, phastCons != ".")$phastCons))), probs = c(.99,.95,.90,.85,.80,.75))
+#     99%    95%    90%    85%    80%    75% 
+#    817.52 719.60 664.00 630.00 602.00 576.00 
+  
   output$ui_select_enhancer <- renderUI({
     selectInput(inputId = "select_enhancer", label = "Fetal brain enhancer", choices = c("all", "yes", "no"))
+  })
+  
+  output$ui_select_promoter <- renderUI({
+    selectInput(inputId = "select_promoter", label = "Fetal brain promoter", choices = c("all", "yes", "no"))
   })
   
   # 2. Reactive data set
@@ -55,10 +112,56 @@ server <- function(input, output, session) {
            turf_selected <- input$select_turf,
            turf_selected <- DNM_df$TURF)
     
+    ### Brain-specific score selection
+
+    
+    ifelse(input$select_brainscore == "all", brainscore_selected <- DNM_df$brainSp_score,
+          ifelse(input$select_brainscore == paste_select_option("top 1%", brainsp_top_1_percent), brainscore_selected <- brainsp_top_1_percent, 
+                ifelse(input$select_brainscore == "top 5%", brainscore_selected <- brainsp_top_5_percent, 
+                      ifelse(input$select_brainscore == "top 10%", brainscore_selected <- brainsp_top_10_percent,
+                            ifelse(input$select_brainscore == "top 15%", brainscore_selected <- brainsp_top_15_percent, 
+                                  ifelse(input$select_brainscore == "top 20%", brainscore_selected <- brainsp_top_20_percent, 
+                                        brainscore_selected <- brainsp_top_25_percent) #top 25% cutoff (.182)
+                            )
+                      )
+                )
+          )
+    )
+           
+    # GO back and do something like:
+    # 1_percent = 0.599
+    #5_percent = 0.414
+    #10_percent = 0.296
+    
+    #and then use the variable names. Oset the variables to compute
+    # _1percent <- quantile(DNM_df$brainSp_score, .99)
+    
+    #"top 1% (.599)", "top 5% (.414)", "top 10% (.296)", "top 15% (.234)", "top 20% (.204)", "top 25% (.182)")
+    
+    ifelse(input$select_cadd == "all", cadd_selected <- DNM_df$CADD,
+           ifelse(input$select_cadd == "top 1% (21.1)", cadd_selected <- 21.1, 
+                  ifelse(input$select_cadd == "top 5% (12.7)", cadd_selected <- 12.7, 
+                         ifelse(input$select_cadd == "top 10% (9.4)", cadd_selected <- 9.4,
+                                ifelse(input$select_cadd == "top 15% (7.5)", cadd_selected <- 7.5, 
+                                       ifelse(input$select_cadd == "top 20% (6.2)", cadd_selected <- 6.2, 
+                                              cadd_selected <- 5.2) #top 25% cutoff (5.2)
+                                )
+                         )
+                  )
+           )
+    )
+    
+    
     ifelse(input$select_enhancer != "all",
            ifelse(input$select_enhancer == "yes", enhancer_selected <- "DHS_fetal_brain_enh", 
                   enhancer_selected <- "."),
            enhancer_selected <- DNM_df$fetal_brain_enh_dhs
+    )
+    
+    ifelse(input$select_promoter != "all",
+           ifelse(input$select_promoter == "yes", promoter_selected <- "DHS_fetal_brain_prom", 
+                  promoter_selected <- "."),
+           promoter_selected <- DNM_df$fetal_brain_prom_dhs
     )
     
     # 2. Filter data
@@ -66,7 +169,10 @@ server <- function(input, output, session) {
                                        regDB2.0 == regdb_selected &
                                        VEP == vep_selected & 
                                        TURF >= turf_selected &
-                                       fetal_brain_enh_dhs == enhancer_selected)
+                                       brainSp_score >= brainscore_selected &
+                                       CADD >= cadd_selected &
+                                       fetal_brain_enh_dhs == enhancer_selected &
+                                       fetal_brain_prom_dhs == promoter_selected)
     
     # 3. Return filtered table
     filt_DNM_df   
@@ -74,7 +180,7 @@ server <- function(input, output, session) {
   
   # 3. Output filtered data table (uses DT package)
   output$dt_table <- renderDataTable({
-    datatable(df_data())
+    datatable(df_data(), options = list(pageLength = 15)) #options = list(lengthMenu = c(5, 30, 50), pageLength = 5)
   })    
   
   # 4. Create mutation count table
@@ -101,17 +207,18 @@ server <- function(input, output, session) {
   })
   
   # Create reactive matrix object with reactive counts
+  rnames <- c("probands", "siblings")
+  cnames <- c("meeting criteria","not meeting criteria")
   twobytwo <- reactive({
     matrix(c(filtered_proband_count(), filtered_sibling_count(), filtered_no_proband_count(), filtered_no_sibling_count()), nrow = 2,
-           dimnames= list(
-             child=c('proband','sibling'),
-             feature=c("meeting criteria","not meeting criteria")))
+           dimnames= list(rnames, cnames)
+    )
   }) 
   
   # Output counts matrix object
   output$counts <-renderTable({
     twobytwo()
-  })
+  }, rownames = TRUE)
   
   # Output p-value from the fisher's exact test
   output$pval <- renderText({
@@ -128,15 +235,20 @@ main_page <- tabPanel(
   
   sidebarLayout(
     sidebarPanel(
+      width = 3,
       h4("Select desired filters for mutations to be shown in the table"),
       br(),
       title = "Inputs",
       
       uiOutput("ui_select_child"),
       uiOutput("ui_select_regdb"),
-      uiOutput("ui_select_VEP"),
       uiOutput("ui_select_turf"),
-      uiOutput("ui_select_enhancer")
+      uiOutput("ui_select_brainscore"),
+      uiOutput("ui_select_CADD"),
+      uiOutput("ui_select_VEP"),
+      uiOutput("ui_select_enhancer"),
+      uiOutput("ui_select_promoter")
+      
     ),
     
     mainPanel(
@@ -199,7 +311,7 @@ about_page <- tabPanel(
   
 ui <- navbarPage( 
   title = 'De Novo Analyser',
-  theme = shinytheme('united'),
+  theme = shinytheme('cerulean'),
   main_page,
   about_page
 )
