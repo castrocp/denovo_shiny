@@ -11,7 +11,7 @@ DNM_df <- read.delim(here("denovo_app/data", "DNMs.hg19.indelFilt.rptFilt.MAF001
 ### 2. Server
 server <- function(input, output, session) {
   
-  # 1. UI dropdown selection
+  ########## 1. UI dropdown selection ##########
   
   ### Function to generate the text to be shown in the selection menu. Percentile along with corresponding threshold value.
   paste_select_option <- function(percentile, value){
@@ -20,25 +20,49 @@ server <- function(input, output, session) {
   }
   
   ### Function to calculate quantile thresholds
-  calc_quantile <- function(col, percentage){
-    quant <- round(quantile(col, percentage, names = FALSE, na.rm = TRUE), digits = 3) #set names to false to return quantile value without percentage label
+  calc_quantile <- function(col, percentile){
+    quant <- round(quantile(col, percentile, names = FALSE, na.rm = TRUE), digits = 3) #set names to false to return quantile value without percentile label
     #na.rm = TRUE is for the cases in which factors were converted to numeric type and NAs were introduced
     return(quant)
   }
   
+  ### Child selection
   output$ui_select_child <- renderUI({
     selectInput(inputId = "select_child", label = "Child", choices = c("all", "proband","sibling"))
   })
   
+  ### RegulomeDB score selection
   output$ui_select_regdb <- renderUI({
     selectInput(inputId = "select_regdb", label = "RegulomeDB", choices = c("all", "all 2s", "all 3s", "2a", "2b", "2c", "3a", "3b", "4", "5", "6", "7"))
   })
   
+  ### TURF score selection and quantile calculation
+  turf_top_1_percent <- calc_quantile(DNM_df$TURF, .99)
+  turf_top_5_percent <- calc_quantile(DNM_df$TURF, .95)
+  turf_top_10_percent <- calc_quantile(DNM_df$TURF, .90)
+  turf_top_15_percent <- calc_quantile(DNM_df$TURF, .85)
+  turf_top_20_percent <- calc_quantile(DNM_df$TURF, .80)
+  turf_top_25_percent <- calc_quantile(DNM_df$TURF, .75)
+  
+  pasted_turf_top_1_percent <- paste_select_option("top 1%", turf_top_1_percent)
+  pasted_turf_top_5_percent <- paste_select_option("top 5%", turf_top_5_percent)
+  pasted_turf_top_10_percent <- paste_select_option("top 10%", turf_top_10_percent)
+  pasted_turf_top_15_percent <- paste_select_option("top 15%", turf_top_15_percent)
+  pasted_turf_top_20_percent <- paste_select_option("top 20%", turf_top_20_percent)
+  pasted_turf_top_25_percent <- paste_select_option("top 25%", turf_top_25_percent)
+  
   output$ui_select_turf <- renderUI({
-    selectInput(inputId = "select_turf", label = "TURF", choices = c("all", .6, .7, .8, .9))
+    selectInput(inputId = "select_turf", label = "TURF",
+                choices = c("all",
+                            c(pasted_turf_top_1_percent, pasted_turf_top_5_percent,
+                              pasted_turf_top_10_percent, pasted_turf_top_15_percent,
+                              pasted_turf_top_20_percent, pasted_turf_top_25_percent)
+                           )
+               )
+                           
   })
   
-  ## Calculate brain-specific functional score quantiles
+  ### Brain-specific functional score selection and quantile calculation
   brainsp_top_1_percent <- calc_quantile(DNM_df$brainSp_score, .99)
   brainsp_top_5_percent <- calc_quantile(DNM_df$brainSp_score, .95)   
   brainsp_top_10_percent <- calc_quantile(DNM_df$brainSp_score, .90)   
@@ -53,32 +77,49 @@ server <- function(input, output, session) {
   pasted_brainsp_top_20_percent <- paste_select_option("top 20%", brainsp_top_20_percent)
   pasted_brainsp_top_25_percent <- paste_select_option("top 25%", brainsp_top_25_percent)
   
-  
   output$ui_select_brainscore <- renderUI({
     selectInput(inputId = "select_brainscore", label = "Brain-specific functional score", 
                 choices = c("all",
-                            c(paste_select_option("top 1%", brainsp_top_1_percent), paste_select_option("top 5%", brainsp_top_5_percent),
-                              paste_select_option("top 10%", brainsp_top_10_percent), paste_select_option("top 15%", brainsp_top_15_percent),
-                              paste_select_option("top 20%", brainsp_top_20_percent), paste_select_option("top 25%", brainsp_top_25_percent)
-                            )
-                          )
-    )
-  }) #"top 5% (.414)", "top 10% (.296)", "top 15% (.234)", "top 20% (.204)", "top 25% (.182)"))
+                            c(pasted_brainsp_top_1_percent, pasted_brainsp_top_5_percent,
+                              pasted_brainsp_top_10_percent, pasted_brainsp_top_15_percent,
+                              pasted_brainsp_top_20_percent, pasted_brainsp_top_25_percent) #"top 5% (.414)", "top 10% (.296)", "top 15% (.234)", "top 20% (.204)", "top 25% (.182)"))
+                           )
+                )
+  }) 
 
+  ### CADD score selection and quantile calculation
+  cadd_top_1_percent <- calc_quantile(DNM_df$CADD, .99)
+  cadd_top_5_percent <- calc_quantile(DNM_df$CADD, .95)
+  cadd_top_10_percent <- calc_quantile(DNM_df$CADD, .90)
+  cadd_top_15_percent <- calc_quantile(DNM_df$CADD, .85)
+  cadd_top_20_percent <- calc_quantile(DNM_df$CADD, .80)
+  cadd_top_25_percent <- calc_quantile(DNM_df$CADD, .75)
+  
+  pasted_cadd_top_1_percent <- paste_select_option("top 1%", cadd_top_1_percent)
+  pasted_cadd_top_5_percent <- paste_select_option("top 5%", cadd_top_5_percent)
+  pasted_cadd_top_10_percent <- paste_select_option("top 10%", cadd_top_10_percent)
+  pasted_cadd_top_15_percent <- paste_select_option("top 15%", cadd_top_15_percent)
+  pasted_cadd_top_20_percent <- paste_select_option("top 20%", cadd_top_20_percent)
+  pasted_cadd_top_25_percent <- paste_select_option("top 25%", cadd_top_25_percent)
   
   output$ui_select_CADD <- renderUI({
     selectInput(inputId = "select_cadd", label = "CADD score", 
-                choices = c("all", "top 1% (21.1)", "top 5% (12.7)", "top 10% (9.4)", "top 15% (7.5)", "top 20% (6.2)", "top 25% (5.2)"))
+                choices = c("all",
+                            c(pasted_cadd_top_1_percent, pasted_cadd_top_5_percent,
+                              pasted_cadd_top_10_percent, pasted_cadd_top_15_percent,
+                              pasted_cadd_top_20_percent, pasted_cadd_top_25_percent) #"top 1% (21.1)", "top 5% (12.7)", "top 10% (9.4)", "top 15% (7.5)", "top 20% (6.2)", "top 25% (5.2)")
+                )
+    )
   })
   
+  ### VEP category selection 
   output$ui_select_VEP <- renderUI({
     selectInput(inputId = "select_vep", label = "VEP", choices = c("all", as.character(unique(DNM_df$VEP))) )
   })
   
-  ## Calculate phastCons score quantiles
-  ## Convert from factor type to numeric
-  DNM_df$phastCons <- as.numeric(as.character(DNM_df$phastCons))
-  
+  ### phastCons score selection and quantile calculation
+  DNM_df$phastCons <- as.numeric(as.character(DNM_df$phastCons))   #Convert from factor type to numeric because of NAs
+
   phastcons_top_1_percent <- calc_quantile(DNM_df$phastCons, .99)
   phastcons_top_5_percent <- calc_quantile(DNM_df$phastCons, .95)   
   phastcons_top_10_percent <- calc_quantile(DNM_df$phastCons, .90)   
@@ -97,23 +138,24 @@ server <- function(input, output, session) {
     selectInput(inputId = "select_phastcons", label = "phastCons score",
                 choices = c("all",
                             c(pasted_phastcons_top_1_percent, pasted_phastcons_top_5_percent,
-                              pasted_phastcons_top_10_percent, pasted_phastcons_top_15_percent,
-                              pasted_phastcons_top_20_percent, pasted_phastcons_top_25_percent
-                            )
-                          )
+                              pasted_phastcons_top_10_percent, pasted_phastcons_top_15_percent,  #     99%    95%    90%    85%    80%    75% 
+                              pasted_phastcons_top_20_percent, pasted_phastcons_top_25_percent)  #    817.52 719.60 664.00 630.00 602.00 576.00 
+                )
     )
-  })#     99%    95%    90%    85%    80%    75% 
-    #    817.52 719.60 664.00 630.00 602.00 576.00 
+  })
   
+  ### Enhancer selection
   output$ui_select_enhancer <- renderUI({
     selectInput(inputId = "select_enhancer", label = "Fetal brain enhancer", choices = c("all", "yes", "no"))
   })
   
+  ### Promoter selection
   output$ui_select_promoter <- renderUI({
     selectInput(inputId = "select_promoter", label = "Fetal brain promoter", choices = c("all", "yes", "no"))
   })
   
-  # 2. Reactive data set
+  
+  ####### 2. Create reactive data set based on user selections
   df_data <- reactive({
     
     # 1. Read UI selections
@@ -128,41 +170,52 @@ server <- function(input, output, session) {
            )
     )    
     
-    ifelse(input$select_vep != "all",
-           vep_selected <- input$select_vep,
-           vep_selected <- DNM_df$VEP)  
-    
-    ifelse(input$select_turf != "all",
-           turf_selected <- input$select_turf,
-           turf_selected <- DNM_df$TURF)
-    
-    ### Brain-specific score selection
-    ifelse(input$select_brainscore == "all", brainscore_selected <- DNM_df$brainSp_score,
-          ifelse(input$select_brainscore == pasted_brainsp_top_1_percent, brainscore_selected <- brainsp_top_1_percent, 
-                ifelse(input$select_brainscore == pasted_brainsp_top_5_percent, brainscore_selected <- brainsp_top_5_percent, 
-                      ifelse(input$select_brainscore == pasted_brainsp_top_10_percent, brainscore_selected <- brainsp_top_10_percent,
-                            ifelse(input$select_brainscore == pasted_brainsp_top_15_percent, brainscore_selected <- brainsp_top_15_percent, 
-                                  ifelse(input$select_brainscore == pasted_brainsp_top_20_percent, brainscore_selected <- brainsp_top_20_percent, 
-                                        brainscore_selected <- brainsp_top_25_percent)
-                            )
-                      )
-                )
-          )
-    )
-           
-    
-    ifelse(input$select_cadd == "all", cadd_selected <- DNM_df$CADD,
-           ifelse(input$select_cadd == "top 1% (21.1)", cadd_selected <- 21.1, 
-                  ifelse(input$select_cadd == "top 5% (12.7)", cadd_selected <- 12.7, 
-                         ifelse(input$select_cadd == "top 10% (9.4)", cadd_selected <- 9.4,
-                                ifelse(input$select_cadd == "top 15% (7.5)", cadd_selected <- 7.5, 
-                                       ifelse(input$select_cadd == "top 20% (6.2)", cadd_selected <- 6.2, 
-                                              cadd_selected <- 5.2) #top 25% cutoff (5.2)
+    ### TURF selection
+    ifelse(input$select_turf == "all", turf_selected <- DNM_df$TURF,
+           ifelse(input$select_turf == pasted_turf_top_1_percent, turf_selected <- turf_top_1_percent, 
+                  ifelse(input$select_turf == pasted_turf_top_5_percent, turf_selected <- turf_top_5_percent, 
+                         ifelse(input$select_turf == pasted_turf_top_10_percent, turf_selected <- turf_top_10_percent,
+                                ifelse(input$select_turf == pasted_turf_top_15_percent, turf_selected <- turf_top_15_percent, 
+                                       ifelse(input$select_turf == pasted_turf_top_20_percent, turf_selected <- turf_top_20_percent, 
+                                              turf_selected <- turf_top_25_percent)
                                 )
                          )
                   )
            )
     )
+    
+    ### Brain-specific score selection
+    ifelse(input$select_brainscore == "all", brainscore_selected <- DNM_df$brainSp_score,
+           ifelse(input$select_brainscore == pasted_brainsp_top_1_percent, brainscore_selected <- brainsp_top_1_percent, 
+                  ifelse(input$select_brainscore == pasted_brainsp_top_5_percent, brainscore_selected <- brainsp_top_5_percent, 
+                         ifelse(input$select_brainscore == pasted_brainsp_top_10_percent, brainscore_selected <- brainsp_top_10_percent,
+                                ifelse(input$select_brainscore == pasted_brainsp_top_15_percent, brainscore_selected <- brainsp_top_15_percent, 
+                                       ifelse(input$select_brainscore == pasted_brainsp_top_20_percent, brainscore_selected <- brainsp_top_20_percent, 
+                                              brainscore_selected <- brainsp_top_25_percent)
+                                )
+                         )
+                  )
+           )
+    )
+    
+    ### CADD score selection       
+    ifelse(input$select_cadd == "all", cadd_selected <- DNM_df$CADD,
+           ifelse(input$select_cadd == pasted_cadd_top_1_percent, cadd_selected <- cadd_top_1_percent,
+                   ifelse(input$select_cadd == pasted_cadd_top_5_percent, cadd_selected <- cadd_top_5_percent,
+                           ifelse(input$select_cadd == pasted_cadd_top_10_percent, cadd_selected <- cadd_top_10_percent,
+                                   ifelse(input$select_cadd == pasted_cadd_top_15_percent, cadd_selected <- cadd_top_15_percent,
+                                           ifelse(input$select_cadd == pasted_cadd_top_20_percent, cadd_selected <- cadd_top_20_percent,
+                                                   cadd_selected <- cadd_top_25_percent)
+                                   )
+                           )
+                   )
+           )
+    )
+    
+    ### VEP category selection
+    ifelse(input$select_vep != "all",
+           vep_selected <- input$select_vep,
+           vep_selected <- DNM_df$VEP) 
     
     ### phastCons score selection
     ifelse(input$select_phastcons == "all", phastcons_selected <- "all",
@@ -178,12 +231,14 @@ server <- function(input, output, session) {
            )
     )
     
+    ### Enhancer selection
     ifelse(input$select_enhancer != "all",
            ifelse(input$select_enhancer == "yes", enhancer_selected <- "DHS_fetal_brain_enh", 
                   enhancer_selected <- "."),
            enhancer_selected <- DNM_df$fetal_brain_enh_dhs
     )
     
+    ### Promoter selection
     ifelse(input$select_promoter != "all",
            ifelse(input$select_promoter == "yes", promoter_selected <- "DHS_fetal_brain_prom", 
                   promoter_selected <- "."),
@@ -196,8 +251,7 @@ server <- function(input, output, session) {
                                        VEP == vep_selected & 
                                        TURF >= turf_selected &
                                        brainSp_score >= brainscore_selected &
-                                       #(if (phastcons_selected=="all") (phastCons==T | is.na(phastCons)) else phastCons >= phastcons_selected) &
-                                       (case_when(phastcons_selected == "all" ~ phastCons %in% DNM_df$phastCons,
+                                       (case_when(phastcons_selected == "all" ~ phastCons %in% DNM_df$phastCons, #return all NA rows also
                                                   TRUE ~ phastCons >= phastcons_selected)) &
                                        CADD >= cadd_selected &
                                        fetal_brain_enh_dhs == enhancer_selected &
@@ -298,38 +352,6 @@ main_page <- tabPanel(
   )
 )   
       
-#   fluidPage(
-#     fluidRow(
-#       # Column widths should add up to 12 within a fluidRow() container
-#       column(4,
-#              uiOutput("ui_select_child")
-#       ),
-#       column(4,
-#              uiOutput("ui_select_regdb")
-#       ),
-#       column(4,
-#              uiOutput("ui_select_VEP")
-#       )
-#     ),  
-#     fluidRow(
-#       column(4,
-#              uiOutput("ui_select_turf")
-#       ),
-#       column(4,
-#              uiOutput("ui_select_enhancer")
-#       )
-#     ),
-# 
-#     fluidRow(dataTableOutput("dt_table"))
-#   )
-# )
-# 
-# counts_page <- tabPanel(
-#   title = "Counts and Enrichment Testing",
-#   tableOutput("counts"),
-#   
-#   textOutput("pval")
-# )
 
 about_page <- tabPanel(
   title = "About",
