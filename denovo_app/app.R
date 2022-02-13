@@ -144,6 +144,10 @@ server <- function(input, output, session) {
     )
   })
   
+  ### SIFT selection UI
+  
+  
+  
   ### Enhancer selection
   output$ui_select_enhancer <- renderUI({
     selectInput(inputId = "select_enhancer", label = "Fetal brain enhancer", choices = c("all", "yes", "no"))
@@ -303,10 +307,27 @@ server <- function(input, output, session) {
     twobytwo()
   }, rownames = TRUE)
   
+  # Calculate proportions
+  pro_prop <- reactive({
+    filtered_proband_count() / total_proband
+  })
+  
+  sib_prop <- reactive({
+    filtered_sibling_count() / total_sibling
+  })
+  
+  # Output proportions
+  output$proband_prop <- renderText({
+    pro_prop()
+  })
+  output$sibling_prop <- renderText({
+    sib_prop()
+  })
+  
   # Output p-value from the fisher's exact test
   output$pval <- renderText({
     result <- fisher.test(twobytwo(), alternative = "greater")$p.value
-    paste('Test for enrichment in probands of mutations meeting criteria. The p-value is:', result)
+    paste('The unadjusted p-value is:', result)
   })
   
 }
@@ -319,8 +340,7 @@ main_page <- tabPanel(
   sidebarLayout(
     sidebarPanel(
       width = 3,
-      h4("Select desired filters for mutations to be shown in the table"),
-      br(),
+      h4("Filter mutations by feature"),
       title = "Inputs",
       
       uiOutput("ui_select_child"),
@@ -342,9 +362,21 @@ main_page <- tabPanel(
           DTOutput('dt_table') #use DT's DTOutput() to avoid conflict with shiny::dataTableOutput()
         ),
         tabPanel(
-          title = "Table of counts",
-          #plotOutput("plot_1")
+          title = "Comparison of proband vs. sibling",
+          h3("The table below displays mutation counts across probands and siblings,
+             based on mutations meeting the selected-filter criteria"),
+          br(),
           tableOutput("counts"),
+          h3("Proportions for mutations of interest"),
+          strong("Proportion of selected mutations from total in probands: "), textOutput("proband_prop"),
+          br(),
+          strong("Proportion of selected mutations from total in siblings: "), textOutput("sibling_prop"),
+          h3("Test for enrichment of mutations represented in the above table"),
+          "Using Fisher's exact test and the counts from the table above.",
+          br(),
+          "Test for enrichment of mutations in probands:",
+          br(),
+          br(),
           textOutput("pval")
         )
       )
@@ -362,7 +394,7 @@ about_page <- tabPanel(
 )
   
 ui <- navbarPage( 
-  title = 'De Novo Analyser',
+  title = 'De Novo Browser',
   theme = shinytheme('cerulean'),
   main_page,
   about_page
