@@ -163,9 +163,11 @@ server <- function(input, output, session) {
   df_data <- reactive({
     
     # 1. Read UI selections
+    
+    ### Select child
     ifelse(input$select_child != "all", child_selected <- input$select_child, child_selected <- DNM_df$child)
     
-    # THIS DOESNT SEEM TO BE ACCURATELY PULLING ALL THE 2S AND 3S. THE COUNTS TO DONT ADD UP
+    ### Select RegulomeDB score
     ifelse(input$select_regdb == "all", regdb_selected <- DNM_df$regDB2.0,
            ifelse(input$select_regdb == "all 2s", regdb_selected <- c("2a","2b","2c"),
                   ifelse(input$select_regdb == "all 3s", regdb_selected <- c("3a","3b"),
@@ -250,8 +252,8 @@ server <- function(input, output, session) {
     )
     
     # 2. Filter data
-    filt_DNM_df <- DNM_df %>% filter(child == child_selected &
-                                       regDB2.0 == regdb_selected &
+    filt_DNM_df <- DNM_df %>% filter(child %in% child_selected &
+                                       regDB2.0 %in% regdb_selected &
                                        VEP == vep_selected & 
                                        TURF >= turf_selected &
                                        brainSp_score >= brainscore_selected &
