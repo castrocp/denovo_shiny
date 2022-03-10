@@ -158,6 +158,11 @@ server <- function(input, output, session) {
     selectInput(inputId = "select_promoter", label = "Fetal brain promoter", choices = c("all", "yes", "no"))
   })
   
+  ###  promoter selection
+  output$ui_select_promoter_by_proximity <- renderUI({
+    selectInput(inputId = "select_promoter_by_proximity", label = "Promoter by TSS proximity", choices = c("all", "yes", "no"))
+  })
+  
   
   ####### 2. Create reactive data set based on user selections
   df_data <- reactive({
@@ -251,6 +256,14 @@ server <- function(input, output, session) {
            promoter_selected <- DNM_df$fetal_brain_prom_dhs
     )
     
+    ### Promoter-by-proximity selection
+    ifelse(input$select_promoter_by_proximity != "all",
+           ifelse(input$select_promoter_by_proximity == "no", promoter_by_proximity_selected <- ".", 
+                  promoter_by_proximity_selected <- "yes"),
+           promoter_by_proximity_selected <- DNM_df$promoter_1500bp
+    )
+    
+    
     # 2. Filter data
     filt_DNM_df <- DNM_df %>% filter(child %in% child_selected &
                                        regDB2.0 %in% regdb_selected &
@@ -261,7 +274,11 @@ server <- function(input, output, session) {
                                                   TRUE ~ phastCons >= phastcons_selected)) &
                                        CADD >= cadd_selected &
                                        fetal_brain_enh_dhs == enhancer_selected &
-                                       fetal_brain_prom_dhs == promoter_selected)
+                                       fetal_brain_prom_dhs == promoter_selected &
+                                       (case_when(promoter_by_proximity_selected == "yes" ~ promoter_1500bp != ".",
+                                                  TRUE ~ promoter_1500bp == promoter_by_proximity_selected))
+                                     )
+                                       #promoter_1500bp == promoter_by_proximity_selected)
     
     # 3. Return filtered table
     filt_DNM_df   
@@ -353,7 +370,8 @@ main_page <- tabPanel(
       uiOutput("ui_select_VEP"),
       uiOutput("ui_select_phastcons"),
       uiOutput("ui_select_enhancer"),
-      uiOutput("ui_select_promoter")
+      uiOutput("ui_select_promoter"),
+      uiOutput("ui_select_promoter_by_proximity")
       
     ),
     
